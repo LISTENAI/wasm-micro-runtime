@@ -1,0 +1,60 @@
+name: build wamrc-xtensa
+
+on:
+  push:
+    branches:
+      - build-wamrc-xtensa
+  workflow_dispatch:
+
+concurrency:
+  group: build-wamrc-xtensa
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - { name: linux-x64,  os: ubuntu-latest,  platform: linux }
+          - { name: darwin-x64, os: macos-latest,   platform: darwin }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@v1.1
+        with:
+          dest: ${{ github.workspace }}/ninja
+
+      - name: Get cached LLVM libraries
+        id: cache_llvm
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./core/deps/llvm/build/bin
+            ./core/deps/llvm/build/include
+            ./core/deps/llvm/build/lib
+            ./core/deps/llvm/build/libexec
+            ./core/deps/llvm/build/share
+          key: build-llvm-${{ matrix.os }}
+
+      - name: Build LLVM
+        if: ${{ steps.cache_llvm.outputs.cache-hit != 'true' }}
+        run: python3 build-scripts/build_llvm.py --platform ${{ matrix.platform }} --arch Xtensa ARM
+
+      - name: Build wamrc
+        run: cmake -G Ninja -B build && cmake --build build
+        working-directory: wamr-compiler
+
+      - name: Prepare artifact
+        run: tar -caf wamrc-xtensa-${{ matrix.name }}.tar.xz -C wamr-compiler/build wamrc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wamrc-xtensa
+          path: wamrc-xtensa-${{ matrix.name }}.tar.xz
+          if-no-files-found: error
