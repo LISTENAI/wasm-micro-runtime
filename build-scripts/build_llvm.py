@@ -60,13 +60,13 @@ def build_llvm(llvm_dir, platform, backends, projects):
             "-DLLVM_ENABLE_LIBICUUC:BOOL=OFF",
             "-DLLVM_ENABLE_LIBICUDATA:BOOL=OFF",
         ],
-        "xtensa": [
-            '-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD:STRING="Xtensa"',
-        ],
         "windows": [
+            '-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD:STRING="Xtensa"',
             "-DCMAKE_INSTALL_PREFIX=LLVM-install",
         ],
-        "default": [],
+        "default": [
+            '-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD:STRING="Xtensa"',
+        ],
     }
 
     LLVM_TARGETS_TO_BUILD = [
@@ -206,13 +206,9 @@ def main():
             "repo": "https://github.com/llvm/llvm-project.git",
             "branch": "release/13.x",
         },
-        "xtensa": {
-            "repo": "https://github.com/espressif/llvm-project.git",
-            "branch": "xtensa_release_15.x",
-        },
         "default": {
-            "repo": "https://github.com/llvm/llvm-project.git",
-            "branch": "release/13.x",
+            "repo": "https://github.com/espressif/llvm-project.git",
+            "branch": "xtensa_release_13.0.0",
         },
     }
 
