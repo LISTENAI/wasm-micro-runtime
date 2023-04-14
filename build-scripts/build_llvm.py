@@ -114,7 +114,15 @@ def build_llvm(llvm_dir, platform, backends, projects):
     )
 
     CONFIG_CMD = f"cmake {compile_options} ../llvm"
-    CONFIG_CMD += " -GNinja"
+
+    if "windows" == platform:
+        if "mingw" in sysconfig.get_platform().lower():
+            CONFIG_CMD += " -G'Unix Makefiles'"
+        else:
+            CONFIG_CMD += " -A x64"
+    else:
+        CONFIG_CMD += " -GNinja"
+    
     print(f"{CONFIG_CMD}")
     subprocess.check_call(shlex.split(CONFIG_CMD), cwd=build_dir)
 

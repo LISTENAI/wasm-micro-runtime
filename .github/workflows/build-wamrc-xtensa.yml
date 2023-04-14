@@ -19,6 +19,7 @@ jobs:
         include:
           - { name: linux-x64,  os: ubuntu-latest,  platform: linux }
           - { name: darwin-x64, os: macos-latest,   platform: darwin }
+          - { name: win-x64, os: windows-latest,   platform: windows }
 
     steps:
       - name: Checkout
@@ -46,7 +47,17 @@ jobs:
         run: python3 build-scripts/build_llvm.py --platform ${{ matrix.platform }} --arch Xtensa ARM
 
       - name: Build wamrc
+        if: matrix.platform == 'linux' || matrix.platform == 'darwin'
         run: cmake -G Ninja -B build && cmake --build build
+        working-directory: wamr-compiler
+      
+      - name: Build wamrc
+        if: matrix.platform == 'windows'
+        run: |
+          mkdir build && cd build
+          cmake ..
+          cmake --build . --config Release
+
         working-directory: wamr-compiler
 
       - name: Prepare artifact
