@@ -2389,7 +2389,7 @@ load_relocation_section(const uint8 *buf, const uint8 *buf_end,
         ) {
 #if !defined(BH_PLATFORM_LINUX) && !defined(BH_PLATFORM_LINUX_SGX) \
     && !defined(BH_PLATFORM_DARWIN) && !defined(BH_PLATFORM_WINDOWS) \
-    && !defined(BH_PLATFORM_XOS)
+    && !defined(BH_PLATFORM_XOS) && !defined(BH_PLATFORM_FREERTOS)
             if (module->is_indirect_mode) {
                 set_error_buf(error_buf, error_buf_size,
                               "cannot apply relocation to text section "
