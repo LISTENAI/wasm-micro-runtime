@@ -1,43 +1,34 @@
-# Copyright (C) 2019 Intel Corporation.  All rights reserved.
-# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-name: build wamrc
+name: build wamrc-thumb
 
 on:
-  workflow_call:
-    inputs:
-      arch:
-        description: arch of the release
-        type: string
-        required: false
-        default: x86_64
-      llvm_cache_key:
-        description: the cache key of llvm libraries
-        type: string
-        required: true
-      release:
-        description: it is a part of the release process
-        type: boolean
-        required: true
-      runner:
-        description: OS of compilation
-        type: string
-        required: true
-      upload_url:
-        description: a semantic version number. it is required when `release` is true.
-        type: string
-        required: false
-      ver_num:
-        description: a semantic version number. it is required when `release` is true.
-        type: string
-        required: false
+  push:
+    branches:
+      - freertos
+  workflow_dispatch:
+
+concurrency:
+  group: build-wamrc-thumb
+  cancel-in-progress: true
 
 jobs:
   build:
-    runs-on: ${{ inputs.runner }}
-    steps:
-      - uses: actions/checkout@v3
+    runs-on: ${{ matrix.os }}
 
-      - name: get cached LLVM libraries
+    strategy:
+      matrix:
+        include:
+          - { name: linux-x64,  os: ubuntu-latest,  platform: linux }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@v1.1
+        with:
+          dest: ${{ github.workspace }}/ninja
+
+      - name: Get cached LLVM libraries
         id: cache_llvm
         uses: actions/cache@v3
         with:
@@ -47,44 +38,32 @@ jobs:
             ./core/deps/llvm/build/lib
             ./core/deps/llvm/build/libexec
             ./core/deps/llvm/build/share
-          key: ${{ inputs.llvm_cache_key }}
+          key: build-llvm-${{ matrix.os }}
 
-      - name: Build llvm and clang from source
-        if: steps.cache_llvm.outputs.cache-hit != 'true'
-        run: /usr/bin/env python3 ./build_llvm.py --arch X86
-        working-directory: build-scripts
+      - name: Build LLVM
+        if: ${{ steps.cache_llvm.outputs.cache-hit != 'true' }}
+        run: python3 build-scripts/build_llvm.py --platform ${{ matrix.platform }} --arch ARM
 
-      - name: generate wamrc binary release
-        run: |
-          cmake -S . -B build
-          cmake --build build --config Release --parallel 4
+      - name: Build wamrc
+        if: matrix.platform == 'linux' || matrix.platform == 'darwin'
+        run: cmake -G Ninja -B build && cmake --build build
         working-directory: wamr-compiler
+      
+      # - name: Build wamrc
+      #   if: matrix.platform == 'windows'
+      #   run: |
+      #     mkdir build && cd build
+      #     cmake ..
+      #     cmake --build . --config Release
 
-      - name: compress the binary
-        if: inputs.release
-        run: |
-          tar czf wamrc-${{ inputs.ver_num }}-${{ inputs.runner }}.tar.gz wamrc
-          zip wamrc-${{ inputs.ver_num }}-${{ inputs.runner }}.zip wamrc
-        working-directory: wamr-compiler/build
+      #   working-directory: wamr-compiler
 
-      - name: upload release tar.gz
-        if: inputs.release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare artifact
+        run: tar -caf wamrc-xtensa-${{ matrix.name }}.tar.xz -C wamr-compiler/build wamrc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ inputs.upload_url }}
-          asset_path: wamr-compiler/build/wamrc-${{ inputs.ver_num }}-${{ inputs.runner }}.tar.gz
-          asset_name: wamrc-${{ inputs.ver_num }}-${{ inputs.arch }}-${{ inputs.runner }}.tar.gz
-          asset_content_type: application/x-gzip
-
-      - name: upload release zip
-        if: inputs.release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ inputs.upload_url }}
-          asset_path: wamr-compiler/build/wamrc-${{ inputs.ver_num }}-${{ inputs.runner }}.zip
-          asset_name: wamrc-${{ inputs.ver_num }}-${{ inputs.arch }}-${{ inputs.runner }}.zip
-          asset_content_type: application/zip
+          name: wamrc-xtensa
+          path: wamrc-xtensa-${{ matrix.name }}.tar.xz
+          if-no-files-found: error
